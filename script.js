@@ -14,6 +14,40 @@ if (!roleta || !resultado || !sortearBtn) {
         console.warn('AudioContext não suportado:', e);
     }
 
+    // Initialize SpeechSynthesis
+    const synth = window.speechSynthesis;
+    let voices = [];
+    let femaleVoice = null;
+
+    // Load voices and select a female one
+    function loadVoices() {
+        voices = synth.getVoices();
+        // Prefer Portuguese (Brazil) female voice, fallback to any female, then any voice
+        femaleVoice = voices.find(voice => 
+            voice.lang === 'pt-BR' && voice.name.toLowerCase().includes('female')) ||
+            voices.find(voice => voice.lang === 'pt-BR') ||
+            voices.find(voice => voice.name.toLowerCase().includes('female')) ||
+            voices[0];
+    }
+
+    // Load voices immediately and on change (some browsers load voices async)
+    loadVoices();
+    synth.onvoiceschanged = loadVoices;
+
+    // Function to speak the number
+    function speakNumber(number) {
+        if (!synth || !femaleVoice) {
+            console.warn('SpeechSynthesis ou voz não disponível.');
+            return;
+        }
+        const utterance = new SpeechSynthesisUtterance(`O número é ${number}`);
+        utterance.lang = 'pt-BR';
+        utterance.voice = femaleVoice;
+        utterance.rate = 1;
+        utterance.pitch = 1.2; // Slightly higher pitch for a more feminine tone
+        synth.speak(utterance);
+    }
+
     // Function to play a "plin" sound (short chime)
     function playPlinSound() {
         if (!audioCtx) return;
@@ -60,7 +94,7 @@ if (!roleta || !resultado || !sortearBtn) {
     }
 
     sortearBtn.addEventListener('click', () => {
-        // Resume AudioContext on user interaction (required by browsers)
+        // Resume AudioContext on user interaction
         if (audioCtx && audioCtx.state === 'suspended') {
             audioCtx.resume();
         }
@@ -68,7 +102,7 @@ if (!roleta || !resultado || !sortearBtn) {
         playPlinSound();
         sortearBtn.disabled = true;
         roleta.classList.add('spinning');
-        resultado.textContent = 'Girando';
+        resultado.textContent = 'Sorteando...';
         playSpinSound();
 
         setTimeout(() => {
@@ -76,6 +110,7 @@ if (!roleta || !resultado || !sortearBtn) {
             resultado.textContent = numeroSorteado;
             roleta.classList.remove('spinning');
             playStopSound();
+            speakNumber(numeroSorteado);
             sortearBtn.disabled = false;
         }, 2000); // 2-second spin
     });
